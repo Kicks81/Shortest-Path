@@ -1,0 +1,55 @@
+import itertools
+import googlemaps
+
+# Replace 'YOUR_API_KEY' with your actual Google Maps API key
+gmaps = googlemaps.Client(key='YOUR_API_KEY')
+
+# Step 1: Allow users to enter postal code addresses
+postal_codes = []
+while len(postal_codes) < 10:
+    postal_code = input(f"Enter postal code {len(postal_codes) + 1} (blank to stop): ")
+    if not postal_code:
+        break
+    postal_codes.append(postal_code)
+
+# Step 2: Get driving times between each pair of postal codes and store them
+driving_times = {}
+for i in range(len(postal_codes)):
+    for j in range(i + 1, len(postal_codes)):
+        origin = postal_codes[i]
+        destination = postal_codes[j]
+        result = gmaps.distance_matrix(origin, destination, mode="driving")
+
+        # Check if the API response contains the expected data
+        if 'rows' in result and result['rows'][0]['elements'][0].get('duration'):
+            driving_time_minutes = result['rows'][0]['elements'][0]['duration']['value'] / 60
+            driving_times[(origin, destination)] = driving_time_minutes
+            driving_times[(destination, origin)] = driving_time_minutes
+        else:
+            print(f"Could not retrieve driving time between {origin} and {destination}.")
+
+# Step 3: Calculate permutations with the shortest time
+shortest_time = float('inf')
+shortest_permutation = None
+
+for permutation in itertools.permutations(postal_codes):
+    total_time = 0
+    for i in range(len(permutation) - 1):
+        origin = permutation[i]
+        destination = permutation[i + 1]
+        total_time += driving_times[(origin, destination)]
+    if total_time < shortest_time:
+        shortest_time = total_time
+        shortest_permutation = permutation
+
+# Step 4: Display the shortest permutation and the matrix of driving times
+print("Shortest Time Permutation:")
+print(" -> ".join(shortest_permutation))
+print(f"Total Time: {shortest_time} minutes\n")
+
+print("Driving Time Matrix:")
+header = [""] + postal_codes
+print("\t".join(header))
+for origin in postal_codes:
+    row = [f"{driving_times.get((origin, dest), 0):.1f} min" for dest in postal_codes]
+    print(f"{origin}\t{', '.join(row)}")
